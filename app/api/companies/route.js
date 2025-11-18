@@ -1,8 +1,7 @@
-// src/app/api/companies/route.js
-import connectToDatabase from '@/lib/mongodb'; // ← This is the correct one
+import connectToDatabase from '@/lib/mongodb';
 import Company from '@/models/Company';
 
-export const dynamic = 'force-dynamic'; // Important for Vercel
+export const dynamic = 'force-dynamic'; 
 
 export async function GET(request) {
   try {
