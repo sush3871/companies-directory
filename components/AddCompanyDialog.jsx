@@ -20,7 +20,6 @@ const formSchema = z.object({
   size: z.string().min(1),
   type: z.string().min(1),
   website: z.string().url().optional().or(z.literal('')),
-  description: z.string().optional(),
 });
 
 export default function AddCompanyDialog({ children, onSuccess }) {
@@ -36,7 +35,6 @@ export default function AddCompanyDialog({ children, onSuccess }) {
       size: "",
       type: "",
       website: "",
-      description: "",
     },
   });
 

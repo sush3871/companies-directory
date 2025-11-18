@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { debounce } from "lodash";
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +18,6 @@ export default function Home() {
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 1 });
   const [loading, setLoading] = useState(true);
 
-  // Keep actual filter values as empty string when "All" is selected
   const [filters, setFilters] = useState({
     search: "",
     industry: "",
@@ -27,6 +27,14 @@ export default function Home() {
     sort: "name",
     page: 1,
   });
+
+  // Debounced fetch function (only triggers after user stops typing for 300ms)
+  const debouncedFetch = useCallback(
+    debounce(() => {
+      fetchCompanies();
+    }, 300),
+    [filters] // Re-create only when filters change (except search)
+  );
 
   const fetchCompanies = async () => {
     setLoading(true);
@@ -48,11 +56,20 @@ export default function Home() {
     setLoading(false);
   };
 
+  // Fetch immediately on filter changes (except search)
   useEffect(() => {
-    fetchCompanies();
-  }, [filters]);
+    if (filters.search === "" || filters.search.length >= 2) {
+      fetchCompanies();
+    }
+  }, [filters.industry, filters.location, filters.size, filters.type, filters.sort, filters.page]);
 
-  // Helper to display "All" when value is empty
+  // Debounced search only
+  useEffect(() => {
+    debouncedFetch();
+    return () => debouncedFetch.cancel(); // Cleanup on unmount
+  }, [filters.search]);
+
+  // Helper for "All" in selects
   const displayValue = (value) => (value === "" ? "all" : value);
 
   return (
@@ -77,7 +94,7 @@ export default function Home() {
           <CardTitle>Filters</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {/* Search */}
+          {/* Search - Debounced */}
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
@@ -94,11 +111,7 @@ export default function Home() {
           <Select
             value={displayValue(filters.industry)}
             onValueChange={(v) =>
-              setFilters({
-                ...filters,
-                industry: v === "all" ? "" : v,
-                page: 1,
-              })
+              setFilters({ ...filters, industry: v === "all" ? "" : v, page: 1 })
             }
           >
             <SelectTrigger>
@@ -118,11 +131,7 @@ export default function Home() {
           <Select
             value={displayValue(filters.location)}
             onValueChange={(v) =>
-              setFilters({
-                ...filters,
-                location: v === "all" ? "" : v,
-                page: 1,
-              })
+              setFilters({ ...filters, location: v === "all" ? "" : v, page: 1 })
             }
           >
             <SelectTrigger>
@@ -132,14 +141,10 @@ export default function Home() {
               <SelectItem value="all">All Locations</SelectItem>
               <SelectItem value="Austin, TX">Austin, TX</SelectItem>
               <SelectItem value="Cupertino, CA">Cupertino, CA</SelectItem>
-              <SelectItem value="Mountain View, CA">
-                Mountain View, CA
-              </SelectItem>
+              <SelectItem value="Mountain View, CA">Mountain View, CA</SelectItem>
               <SelectItem value="Redmond, WA">Redmond, WA</SelectItem>
               <SelectItem value="Seattle, WA">Seattle, WA</SelectItem>
-              <SelectItem value="San Francisco, CA">
-                San Francisco, CA
-              </SelectItem>
+              <SelectItem value="San Francisco, CA">San Francisco, CA</SelectItem>
               <SelectItem value="Hawthorne, CA">Hawthorne, CA</SelectItem>
               <SelectItem value="Menlo Park, CA">Menlo Park, CA</SelectItem>
               <SelectItem value="Los Gatos, CA">Los Gatos, CA</SelectItem>
@@ -147,19 +152,13 @@ export default function Home() {
               <SelectItem value="San Jose, CA">San Jose, CA</SelectItem>
               <SelectItem value="Ottawa, Canada">Ottawa, Canada</SelectItem>
               <SelectItem value="Remote">Remote</SelectItem>
-              <SelectItem value="Stockholm, Sweden">
-                Stockholm, Sweden
-              </SelectItem>
-              <SelectItem value="Sydney, Australia">
-                Sydney, Australia
-              </SelectItem>
+              <SelectItem value="Stockholm, Sweden">Stockholm, Sweden</SelectItem>
+              <SelectItem value="Sydney, Australia">Sydney, Australia</SelectItem>
               <SelectItem value="Bozeman, MT">Bozeman, MT</SelectItem>
               <SelectItem value="London, UK">London, UK</SelectItem>
               <SelectItem value="New York, NY">New York, NY</SelectItem>
               <SelectItem value="Toronto, Canada">Toronto, Canada</SelectItem>
-              <SelectItem value="Amsterdam, Netherlands">
-                Amsterdam, Netherlands
-              </SelectItem>
+              <SelectItem value="Amsterdam, Netherlands">Amsterdam, Netherlands</SelectItem>
               <SelectItem value="Berlin, Germany">Berlin, Germany</SelectItem>
             </SelectContent>
           </Select>
@@ -218,7 +217,7 @@ export default function Home() {
         </CardContent>
       </Card>
 
-      {/* Table */}
+      {/* Table & Pagination - unchanged */}
       <Card>
         <CardHeader>
           <CardTitle>Companies ({pagination.total})</CardTitle>
@@ -231,9 +230,7 @@ export default function Home() {
               ))}
             </div>
           ) : companies.length === 0 ? (
-            <p className="text-center text-muted-foreground py-10">
-              No companies found
-            </p>
+            <p className="text-center text-muted-foreground py-10">No companies found</p>
           ) : (
             <Table>
               <TableHeader>
@@ -251,11 +248,7 @@ export default function Home() {
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-3">
                         {company.logo ? (
-                          <img
-                            src={company.logo}
-                            alt={company.name}
-                            className="w-10 h-10 rounded-lg object-cover"
-                          />
+                          <img src={company.logo} alt={company.name} className="w-10 h-10 rounded-lg object-cover" />
                         ) : (
                           <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center text-xs font-bold">
                             {company.name.slice(0, 2).toUpperCase()}
@@ -264,12 +257,7 @@ export default function Home() {
                         <div>
                           <div className="font-semibold">{company.name}</div>
                           {company.website && (
-                            <a
-                              href={company.website}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm text-muted-foreground hover:underline"
-                            >
+                            <a href={company.website} target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:underline">
                               {company.website.replace(/^https?:\/\//, "")}
                             </a>
                           )}
@@ -278,12 +266,8 @@ export default function Home() {
                     </TableCell>
                     <TableCell>{company.industry}</TableCell>
                     <TableCell>{company.location}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{company.size}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge>{company.type}</Badge>
-                    </TableCell>
+                    <TableCell><Badge variant="secondary">{company.size}</Badge></TableCell>
+                    <TableCell><Badge>{company.type}</Badge></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -301,17 +285,11 @@ export default function Home() {
                 href="#"
                 onClick={(e) => {
                   e.preventDefault();
-                  if (filters.page > 1)
-                    setFilters({ ...filters, page: filters.page - 1 });
+                  if (filters.page > 1) setFilters({ ...filters, page: filters.page - 1 });
                 }}
-                className={
-                  filters.page === 1
-                    ? "pointer-events-none opacity-50"
-                    : "cursor-pointer"
-                }
+                className={filters.page === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
               />
             </PaginationItem>
-
             {[...Array(pagination.pages)].map((_, i) => (
               <PaginationItem key={i}>
                 <PaginationLink
@@ -326,20 +304,14 @@ export default function Home() {
                 </PaginationLink>
               </PaginationItem>
             ))}
-
             <PaginationItem>
               <PaginationNext
                 href="#"
                 onClick={(e) => {
                   e.preventDefault();
-                  if (filters.page < pagination.pages)
-                    setFilters({ ...filters, page: filters.page + 1 });
+                  if (filters.page < pagination.pages) setFilters({ ...filters, page: filters.page + 1 });
                 }}
-                className={
-                  filters.page === pagination.pages
-                    ? "pointer-events-none opacity-50"
-                    : "cursor-pointer"
-                }
+                className={filters.page === pagination.pages ? "pointer-events-none opacity-50" : "cursor-pointer"}
               />
             </PaginationItem>
           </PaginationContent>
