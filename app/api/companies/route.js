@@ -1,9 +1,14 @@
-import clientPromise from '@/lib/mongodb';
-import mongoose from 'mongoose';
+// src/app/api/companies/route.js
+import connectToDatabase from '@/lib/mongodb'; // ← This is the correct one
 import Company from '@/models/Company';
+
+export const dynamic = 'force-dynamic'; // Important for Vercel
 
 export async function GET(request) {
   try {
+    // Only this line → connects once per request (cached globally)
+    await connectToDatabase();
+
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
@@ -14,9 +19,6 @@ export async function GET(request) {
     const type = searchParams.get('type') || '';
     const sort = searchParams.get('sort') || 'name';
 
-    await clientPromise;
-    await mongoose.connect(process.env.MONGODB_URI);
-
     let query = {};
     if (search) query.name = { $regex: search, $options: 'i' };
     if (industry) query.industry = industry;
@@ -25,6 +27,7 @@ export async function GET(request) {
     if (type) query.type = type;
 
     const total = await Company.countDocuments(query);
+
     const companies = await Company.find(query)
       .sort({ [sort]: sort === 'name' ? 1 : -1 })
       .skip((page - 1) * limit)
@@ -41,19 +44,21 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    console.error('API Error:', error.message);
+    return Response.json({ error: 'Failed to fetch companies' }, { status: 500 });
   }
 }
 
 export async function POST(request) {
   try {
-    const body = await request.json();
-    await clientPromise;
-    await mongoose.connect(process.env.MONGODB_URI);
+    await connectToDatabase(); // ← Reuse the same connection
 
+    const body = await request.json();
     const company = await Company.create(body);
+
     return Response.json(company, { status: 201 });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 400 });
+    console.error('POST Error:', error.message);
+    return Response.json({ error: error.message || 'Failed to add company' }, { status: 400 });
   }
 }
